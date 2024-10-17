@@ -80,6 +80,7 @@ class GameClient:
         """
         self.server_ip = ip
         self.server_port = port
+        self.is_game_over = False
         print(f"Connecting to server {ip}:{port}")
         self.socket = JSONSocket.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((ip, port))
@@ -156,7 +157,7 @@ class GameClient:
 
     def run(self):
 
-        while True:
+        while not self.is_game_over:
             # wait for the server to send something,
             # or wait for the user to press a key
             self.game_board.debug_bar.clear()
@@ -169,13 +170,16 @@ class GameClient:
             self.game_board.debug_bar.refresh()
             events = selector.select()
             for key, mask in events:
+                if self.is_game_over:
+                    break
                 if key.data:
                     key.data(self)
                 else:
                     self.game_board.debug_bar.clear()
                     self.game_board.debug_bar.addstr(0, 0, f"Unknown event")
                     self.game_board.debug_bar.refresh()
-            # sleep(1)
+
+        self.game_board.status_bar.getch()
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Game client")

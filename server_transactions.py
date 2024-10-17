@@ -34,6 +34,12 @@ def send_game_state(game, transaction_id, originator, peer, messages):
         "status": status
     }
 
+def endgame_handler(game, transaction_id, originator, peer, messages):
+    yield {
+        "type": "endgame",
+        "winner": messages[-1]
+    }
+
 date_type_handlers = {
     "ping": pong_handler,
     "pong": ping_handler,

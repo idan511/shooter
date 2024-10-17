@@ -292,11 +292,11 @@ class GameBoard:
                 continue
             if projectile.row < 0 or projectile.row >= self.rows or projectile.col < 0 or projectile.col >= self.cols:
                 self.projectiles.remove(projectile)
-            for player in list(self.players.values()):
+            for player_name, player in list(self.players.items()):
                 if player.row == projectile.row and player.col == projectile.col:
                     player.health -= projectile.damage()
                     self.projectiles.remove(projectile)
-                    self.status = f"{player} was hit by a projectile!"
+                    self.status = f"{player_name} was hit by a projectile!"
 
         for powerup in self.powerups:
             powerup.ttl -= 1
@@ -411,6 +411,7 @@ class GameServer:
         self.clients_lock = threading.Lock()
         print("clients acceptor started, press enter to start game loop")
         input()
+        print("Starting...")
         self.game_started = True
         self.clients_acceptor.join()
         for client in self.clients.values():
@@ -422,7 +423,6 @@ class GameServer:
         last_update_time = time.time()
 
         while True:
-            # print("Selecting clients")
             clients_selector = selectors.DefaultSelector()
             with self.clients_lock:
                 cur_clients = self.clients.copy()
@@ -436,14 +436,14 @@ class GameServer:
             for key, mask in events:
                 client = key.data
                 data = client.client_socket.recv_json()
-                print(f"Received data from {client.client_name}: {data}")
+                # print(f"Received data from {client.client_name}: {data}")
                 tid = tuple(data["tid"])
                 if tid in self.transactions:
-                    print(f"Continuing transaction {tid}")
+                    # print(f"Continuing transaction {tid}")
                     transaction = self.transactions[tid]
                     transaction.handle(data)
                 else:
-                    print(f"New transaction {tid}")
+                    # print(f"New transaction {tid}")
                     try:
                         transaction = Transaction(self, tid[1], client.client_socket, date_type_handlers[data["type"]], tid=tid[0])
                         self.transactions[tid] = transaction
@@ -465,21 +465,31 @@ class GameServer:
                     transaction.handle(game_state)
                 last_update_time = current_time
 
+                if len(self.game_board.players) == 1:
+                    winner = list(self.game_board.players.keys())[0]
+                    print(f"Game over, winner: {winner}")
+                    for client in cur_clients.values():
+                        transaction = Transaction(self, "self", client.client_socket, endgame_handler)
+                        transaction.handle(winner)
+                    break
+
+
     def __del__(self):
+        for client in self.clients.values():
+            client.client_socket.close()
         if self.server_socket:
             print("Closing server socket")
             self.server_socket.close()
 
     def accept_clients(self):
         while not self.game_started:
-            self.server_socket.settimeout(1)
+            self.server_socket.settimeout(2)
             try:
                 client_socket, client_address = self.server_socket.accept()
                 if len(self.clients) >= self.max_players:
                     print(f"Rejected connection from {client_address}, too many players")
                     client_socket.close()
                     continue
-                # client_thread = threading.Thread(target=ClientHandler, args=(client_socket, client_address))
                 client_socket = JSONSocket(client_socket)
                 client_handler = ClientHandler(client_socket, client_address, self)
                 with self.clients_lock:
@@ -487,7 +497,6 @@ class GameServer:
                     self.game_board.add_player(client_handler.client_name, client_handler.client_character, random.randint(0, self.game_size[0] - 1), random.randint(0, self.game_size[1] - 1))
                 print(f"Accepted connection from {client_address}")
             except TimeoutError:
-                print("Accept timeout")
                 continue
 
 
