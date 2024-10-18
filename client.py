@@ -70,6 +70,9 @@ class GameBoard:
             """
             self.print_game_state(game_state)
 
+        def __del__(self):
+            curses.endwin()
+
 
 
 class GameClient:
@@ -87,7 +90,11 @@ class GameClient:
         self.is_game_over = False
         print(f"Connecting to server {ip}:{port}")
         self.socket = JSONSocket.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((ip, port))
+        try:
+            self.socket.connect((ip, port))
+        except ConnectionRefusedError:
+            print("Server is not up!")
+            exit(1)
         print("Connected to server!")
         handshake_payload = {
             "type": "handshake",
