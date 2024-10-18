@@ -22,8 +22,6 @@ class ClientHandler:
         self.client_address = client_address
         self.game_server = game_server
 
-        self.handshake()
-
     def handshake(self):
         print("Waiting for handshake")
         client_payload = self.client_socket.recv_json()
@@ -37,10 +35,31 @@ class ClientHandler:
         print(f"Received handshake from {self.client_name} with character {self.client_character}")
         handshake_ack_payload = {
             "type": "handshake_ack",
-            "success": True,
-            "game_size": self.game_server.game_size
+            "success": True
         }
+        if not self.client_name.isalnum():
+            print(f"Rejected connection from {self.client_address}, invalid player name")
+            handshake_ack_payload["success"] = False
+            handshake_ack_payload["fail_reason"] = "Invalid player name, must be alphanumeric"
+        elif self.client_name.lower() in [client.client_name.lower() for client in self.game_server.clients.values()]:
+            print(f"Rejected connection from {self.client_address}, duplicate player name")
+            handshake_ack_payload["success"] = False
+            handshake_ack_payload["fail_reason"] = "Duplicate player name"
+        elif self.game_server.game_started:
+            print(f"Rejected connection from {self.client_address}, game already started")
+            handshake_ack_payload["success"] = False
+            handshake_ack_payload["fail_reason"] = "Game already started"
+        elif self.client_character in [player.character for player in self.game_server.game_board.players.values()]:
+            print(f"Rejected connection from {self.client_address}, duplicate character")
+            handshake_ack_payload["success"] = False
+            handshake_ack_payload["fail_reason"] = "Duplicate character"
+
+        if handshake_ack_payload["success"]:
+            handshake_ack_payload["game_size"] = self.game_server.game_size
+
         self.client_socket.send_json(handshake_ack_payload)
+
+        return handshake_ack_payload["success"]
 
 class GameProjectile:
     def __init__(self, game, player, row, col, direction, ttl=20):
@@ -581,6 +600,10 @@ class GameServer:
                 client_socket = JSONSocket(client_socket)
                 client_handler = ClientHandler(client_socket, client_address, self)
                 with self.clients_lock:
+                    handshake_res = client_handler.handshake()
+                    if not handshake_res:
+                        client_socket.close()
+                        continue
                     self.clients[client_handler.client_name] = client_handler
                     self.game_board.add_player(client_handler.client_name, client_handler.client_character, random.randint(0, self.game_size[0] - 1), random.randint(0, self.game_size[1] - 1))
                 print(f"Accepted connection from {client_address}")
@@ -592,7 +615,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Run a game server")
     parser.add_argument("--ip", default="0.0.0.0", type=str, help="The IP address of the server")
     parser.add_argument("--port", default=12345, type=int, help="The port of the server")
-    parser.add_argument("--max-players", default=4, type=int, help="The maximum number of players")
+    parser.add_argument("--max-players", default=10, type=int, help="The maximum number of players")
     parser.add_argument("--game-size", default=[30, 80], type=int, nargs=2,
                         help="The size of the game board, in format rows cols")
 

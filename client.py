@@ -95,16 +95,16 @@ class GameClient:
             "player_character": player_character
 
         }
-        print(f"Sending handshake: {handshake_payload}")
+        print(f"Sending handshake...")
         self.socket.send_json(handshake_payload)
         self.player_name = player_name
-        print("Waiting for handshake ack")
+        print("Waiting for handshake ack...")
         response = self.socket.recv_json()
-        print(f"Received handshake ack: {response}")
         if response["type"] == "handshake_ack" and response["success"]:
             print("Handshake successful!")
         else:
             print("Handshake failed!")
+            print(f"Reason: {response.get('fail_reason', 'Unknown')}")
             self.socket.close()
             exit(1)
 
