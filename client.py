@@ -190,6 +190,7 @@ class GameClient:
                     self.game_board.debug_bar.addstr(0, 0, f"Unknown event")
                     self.game_board.debug_bar.refresh()
 
+        curses.flushinp()
         self.game_board.status_bar.getch()
 
 def parse_args():
