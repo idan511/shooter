@@ -29,6 +29,10 @@ class GameBoard:
             curses.curs_set(0)
             curses.noecho()
             curses.cbreak()
+            curses.start_color()
+            curses.use_default_colors()
+            for i in range(0, curses.COLORS):
+                curses.init_pair(i + 1, i, -1)
             self.stdscr.keypad(True)
             self.outer_board = curses.newwin(rows + 2, cols + 2, 0, 0)
             self.main_board = curses.newwin(rows, cols, 1, 1)
@@ -49,10 +53,10 @@ class GameBoard:
             :param game_state: the game state
             """
             self.main_board.clear()
-            # each object is a triplet (row, col, char)
+            # each object is a quadruplet (row, col, char, color)
             for obj in game_state:
                 try:
-                    self.main_board.addch(*obj)
+                    self.main_board.addch(*obj[:3], curses.color_pair(obj[3]))
                 except curses.error:
                     self.debug_bar.clear()
                     self.debug_bar.addstr(0, 0, f"Error adding object {obj}")

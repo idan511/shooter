@@ -61,6 +61,9 @@ class GameProjectile:
     def fire(self):
         self.game.projectiles.append(self)
 
+    def color(self):
+        return 0
+
 class GameBullet(GameProjectile):
     def __init__(self, game, player, row, col, direction, ttl=20):
         super().__init__(game, player, row, col, direction, ttl)
@@ -138,6 +141,9 @@ class GameSingleLaser(GameProjectile):
     def damage(self):
         return 3
 
+    def color(self):
+        return 204 # pale red
+
 class GameLazer(GameProjectile):
     def __init__(self, game, player, row, col, direction, ttl=30):
         super().__init__(game, player, row, col, direction, ttl)
@@ -210,6 +216,9 @@ class GameHomingMissile(GameProjectile):
     def damage(self):
         return 5
 
+    def color(self):
+        return 136 # purple
+
 class GamePlayer:
     def __init__(self, character, row, col, projectile_type=GameBullet):
         self.character = character
@@ -217,6 +226,9 @@ class GamePlayer:
         self.col = col
         self.projectile_type = projectile_type
         self.health = 100
+
+    def color(self):
+        return 0
 
 class GamePowerup:
     def __init__(self, row, col, ttl):
@@ -230,6 +242,9 @@ class GamePowerup:
     def character(self):
         raise NotImplementedError
 
+    def color(self):
+        return 0
+
 class GameHealthPowerup(GamePowerup):
     def apply(self, player):
         player.health += 25
@@ -237,12 +252,18 @@ class GameHealthPowerup(GamePowerup):
     def character(self):
         return "♥"
 
+    def color(self):
+        return 197 # red
+
 class GameHomingMissilePowerup(GamePowerup):
     def apply(self, player):
         player.projectile_type = GameHomingMissile
 
     def character(self):
         return "⌾"
+
+    def color(self):
+        return 136 # purple
 
 class GameBigBulletPowerup(GamePowerup):
     def apply(self, player):
@@ -257,6 +278,9 @@ class GameLazerPowerup(GamePowerup):
 
     def character(self):
         return "/"
+
+    def color(self):
+        return 204 # pale red
 
 class GameBoard:
     def __init__(self, game_server, rows, cols):
@@ -328,16 +352,16 @@ class GameBoard:
         game_state = []
         players_health = {}
         for player_name, player in self.players.items():
-            game_state.append((int(player.row), int(player.col), player.character))
+            game_state.append((int(player.row), int(player.col), player.character, player.color()))
             players_health[player_name] = player.health
         for projectile in self.projectiles:
             projectile_character = projectile.character()
             if isinstance(projectile_character, str):
-                game_state.append((int(projectile.row), int(projectile.col), projectile_character))
+                game_state.append((int(projectile.row), int(projectile.col), projectile_character, projectile.color()))
             else: # it's a list
                 game_state.append(projectile_character)
         for powerup in self.powerups:
-            game_state.append((int(powerup.row), int(powerup.col), powerup.character()))
+            game_state.append((int(powerup.row), int(powerup.col), powerup.character(), powerup.color()))
         return game_state, players_health, self.status
 
     def player_action(self, player, action):
@@ -475,8 +499,10 @@ class GameServer:
 
 
     def __del__(self):
-        for client in self.clients.values():
-            client.client_socket.close()
+        if self.clients:
+            print("Closing client sockets")
+            for client in self.clients.values():
+                client.client_socket.close()
         if self.server_socket:
             print("Closing server socket")
             self.server_socket.close()
