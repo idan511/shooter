@@ -10,6 +10,8 @@ import curses
 import time
 import random
 
+POWERUP_SPAWN_CHANCE = 0.01
+
 class ClientHandler:
 
     def __init__(self, client_socket: JSONSocket, client_address, game_server):
@@ -163,6 +165,57 @@ class GameLazer(GameProjectile):
                 case "right":
                     self.col += 1
 
+class GameExplosiveBullet(GameProjectile):
+    def __init__(self, game, player, row, col, direction, ttl=15, explosion_max_radius=4):
+        super().__init__(game, player, row, col, direction, ttl)
+        self.explosion_max_radius = explosion_max_radius
+
+    def create_explosion(self, row, col):
+        if 0 <= row < self.game.rows and 0 <= col< self.game.cols:
+            projectile = GameBullet(self.game, self.player, row, col, "none", 2)
+            projectile.fire()
+
+    def advance(self):
+        if self.ttl > self.explosion_max_radius:
+            match self.direction:
+                case "up":
+                    self.row -= 1
+                case "down":
+                    self.row += 1
+                case "left":
+                    self.col -= 1
+                case "right":
+                    self.col += 1
+        else:
+            # explode
+            radius = self.explosion_max_radius - self.ttl
+            for i in range(-radius, radius + 1):
+                if i == -radius or i == radius:
+                    for j in range(-radius, radius + 1):
+                        self.create_explosion(self.row + i, self.col + j)
+                else:
+                    self.create_explosion(self.row + i, self.col - radius)
+                    self.create_explosion(self.row + i, self.col + radius)
+
+        self.ttl -= 1
+
+    def character(self):
+        if self.ttl > self.explosion_max_radius:
+            match self.direction:
+                case "up":
+                    return "▵"
+                case "down":
+                    return "▿"
+                case "left":
+                    return "◃"
+                case "right":
+                    return "▹"
+        else:
+            return "◌"
+
+    def damage(self):
+        return 15
+
 class GameHomingMissile(GameProjectile):
     def __init__(self, game, player, row, col, direction, ttl=20, target=None):
         print("new homing missile")
@@ -282,6 +335,13 @@ class GameLazerPowerup(GamePowerup):
     def color(self):
         return 204 # pale red
 
+class GameExplosiveBulletPowerup(GamePowerup):
+    def apply(self, player):
+        player.projectile_type = GameExplosiveBullet
+
+    def character(self):
+        return "✢"
+
 class GameBoard:
     def __init__(self, game_server, rows, cols):
         self.game_server = game_server
@@ -300,14 +360,15 @@ class GameBoard:
 
     def update(self):
         # give a small chance for a powerup to spawn
-        if random.random() < 0.01:
+        if random.random() < POWERUP_SPAWN_CHANCE:
             row = random.randint(0, self.rows - 1)
             col = random.randint(0, self.cols - 1)
             powerup_ttl = random.randint(100, 200)
             powerup = random.choice([GameHealthPowerup,
                                      GameHomingMissilePowerup,
                                      GameBigBulletPowerup,
-                                     GameLazerPowerup])(row, col, powerup_ttl)
+                                     GameLazerPowerup,
+                                     GameExplosiveBulletPowerup])(row, col, powerup_ttl)
             self.powerups.append(powerup)
 
         for projectile in self.projectiles:
@@ -424,6 +485,7 @@ class GameServer:
     def run(self):
         print("Creating server socket")
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         print("Binding server socket")
         self.server_socket.bind((self.ip, self.port))
         print("Listening for connections")
