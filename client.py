@@ -190,6 +190,10 @@ class GameClient:
                     self.game_board.debug_bar.addstr(0, 0, f"Unknown event")
                     self.game_board.debug_bar.refresh()
 
+        # wait a bit so users can see the endgame message
+        sleep(3)
+        self.game_board.status_bar.addstr(0, 0, "Press any key to exit")
+        self.game_board.status_bar.refresh()
         curses.flushinp()
         self.game_board.status_bar.getch()
 

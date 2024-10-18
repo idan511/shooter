@@ -1,5 +1,3 @@
-from time import sleep
-
 def pong_handler(game, transaction_id, originator, peer, messages):
     game.game_board.status_bar.clear()
     game.game_board.status_bar.addstr(0, 0, f"Ping!")
@@ -44,9 +42,6 @@ def endgame_handler(game, transaction_id, originator, peer, messages):
     game.game_board.debug_bar.refresh()
     game.game_board.status_bar.refresh()
     game.is_game_over = True
-    sleep(4)
-    game.game_board.status_bar.addstr(0, 0, "Press any key to exit")
-    game.game_board.status_bar.refresh()
     yield None
 
 date_type_handlers = {
