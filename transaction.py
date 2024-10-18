@@ -1,7 +1,7 @@
 class Transaction:
     transaction_counter = 0
     def __init__(self, game_server, originator, peer_socket, handler, tid=None):
-        print(f"Creating transaction {Transaction.transaction_counter} from {originator} to {peer_socket}")
+        # print(f"Creating transaction {Transaction.transaction_counter} from {originator} to {peer_socket}")
         self.transaction_id = tid if tid else Transaction.transaction_counter
         Transaction.transaction_counter += 1
         self.originator = originator

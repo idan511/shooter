@@ -540,7 +540,19 @@ class GameServer:
 
             for key, mask in events:
                 client = key.data
-                data = client.client_socket.recv_json()
+                try:
+                    data = client.client_socket.recv_json()
+                except Exception as e:
+                    error_type = type(e).__name__
+                    print(f"Something went wrong with {client.client_name}@{client.client_address[0]}:{client.client_address[1]}: {error_type}: {e}")
+                    print(f"Closing connection with {client.client_name}")
+                    client.client_socket.close()
+                    del cur_clients[client.client_name]
+                    self.game_board.players[client.client_name].health = 0
+                    self.game_board.status = f"{client.client_name} disconnected"
+                    with self.clients_lock:
+                        del self.clients[client.client_name]
+                    continue
                 # print(f"Received data from {client.client_name}: {data}")
                 tid = tuple(data["tid"])
                 if tid in self.transactions:
@@ -564,10 +576,20 @@ class GameServer:
             if current_time - last_update_time >= game_refresh_interval:
                 self.game_board.update()
                 game_state = self.game_board.get_game_state()
-                for client in cur_clients.values():
+                for client_name, client in list(cur_clients.items()):
                     transaction = Transaction(self, "self", client.client_socket, send_game_state)
                     self.transactions[(transaction.transaction_id, "self")] = transaction
-                    transaction.handle(game_state)
+                    try:
+                        transaction.handle(game_state)
+                    except Exception as e:
+                        print(f"Error sending game state to {client_name}: {e}")
+                        print(f"Closing connection with {client_name}")
+                        self.game_board.status = f"{client_name} disconnected"
+                        client.client_socket.close()
+                        del cur_clients[client_name]
+                        self.game_board.players[client.client_name].health = 0
+                        with self.clients_lock:
+                            del self.clients[client_name]
                 last_update_time = current_time
 
                 if len(self.game_board.players) == 1:
