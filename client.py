@@ -194,7 +194,7 @@ class GameClient:
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Game client")
-    parser.add_argument("--ip", type=str, default="0.0.0.0", help="The IP address of the server")
+    parser.add_argument("--ip", type=str, default="127.0.0.1", help="The IP address of the server")
     parser.add_argument("--port", type=int, default=12345, help="The port of the server")
     parser.add_argument("--player_name", type=str, help="The name of the player")
     parser.add_argument("--player_character", type=str, help="The character of the player")
