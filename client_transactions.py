@@ -20,12 +20,8 @@ def handle_game_state(game, transaction_id, originator, peer, messages):
     status = messages[-1]["status"]
     players_health = messages[-1]["players_health"]
     game.game_board.update_game_state(game_state)
-    game.game_board.status_bar.clear()
-    game.game_board.status_bar.addstr(0, 0, status)
-    game.game_board.status_bar.refresh()
-    game.game_board.health_bar.clear()
-    game.game_board.health_bar.addstr(0, 0, f"Players: {len(players_health)}, Your health: {max(players_health.get(game.player_name, 0), 0)}")
-    game.game_board.health_bar.refresh()
+    game.game_board.update_status(status)
+    game.game_board.update_players_health(players_health)
     yield None
 
 def endgame_handler(game, transaction_id, originator, peer, messages):

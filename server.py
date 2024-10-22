@@ -11,6 +11,7 @@ import time
 import random
 
 POWERUP_SPAWN_CHANCE = 0.01
+END_GAME_ON_SINGLE_PLAYER = True
 
 class ClientHandler:
 
@@ -515,9 +516,18 @@ class GameServer:
         self.clients_acceptor.start()
         self.clients_lock = threading.Lock()
         print("clients acceptor started, press enter to start game loop")
-        input()
+
+        while not self.game_started:
+            # wait for input, or just wait for the clients_acceptor to finish
+            starter_selector = selectors.DefaultSelector()
+            starter_selector.register(0, selectors.EVENT_READ)
+            events = starter_selector.select(timeout=1)
+
+            for key, mask in events:
+                input()
+                self.game_started = True
+
         print("Starting...")
-        self.game_started = True
         self.clients_acceptor.join()
         for client in self.clients.values():
             client.client_socket.send_json({
@@ -529,8 +539,7 @@ class GameServer:
 
         while True:
             clients_selector = selectors.DefaultSelector()
-            with self.clients_lock:
-                cur_clients = self.clients.copy()
+            cur_clients = self.clients
 
             for client in cur_clients.values():
                 clients_selector.register(client.client_socket, selectors.EVENT_READ, client)
@@ -592,7 +601,7 @@ class GameServer:
                             del self.clients[client_name]
                 last_update_time = current_time
 
-                if len(self.game_board.players) == 1:
+                if END_GAME_ON_SINGLE_PLAYER and len(self.game_board.players) == 1:
                     winner = list(self.game_board.players.keys())[0]
                     print(f"Game over, winner: {winner}")
                     for client in cur_clients.values():
@@ -631,6 +640,9 @@ class GameServer:
                 print(f"Accepted connection from {client_address}")
             except TimeoutError:
                 continue
+
+            if len(self.clients) == self.max_players:
+                self.game_started = True
 
 
 def parse_args():

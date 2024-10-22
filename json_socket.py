@@ -51,8 +51,13 @@ class JSONSocket:
                 return None
             json_bytes += packet
 
+
         json_data = json_bytes.decode()
-        data = json.loads(json_data)
+
+        try:
+            data = json.loads(json_data)
+        except json.JSONDecodeError as e:
+            raise RuntimeError(f"Error decoding JSON: '{json_data}', Error: {e}")
         return data
 
     def __getattr__(self, item):
