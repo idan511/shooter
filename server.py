@@ -12,6 +12,7 @@ import random
 
 POWERUP_SPAWN_CHANCE = 0.01
 END_GAME_ON_SINGLE_PLAYER = True
+GAME_REFRESH_INTERVAL = 0.0833 # 12 FPS
 
 class ClientHandler:
 
@@ -534,7 +535,6 @@ class GameServer:
                 "type": "game_start"
             })
         selector_timeout = 0.01
-        game_refresh_interval = 0.05
         last_update_time = time.time()
 
         while True:
@@ -582,7 +582,7 @@ class GameServer:
                         }
                         client.client_socket.send_json(response)
 
-            if current_time - last_update_time >= game_refresh_interval:
+            if current_time - last_update_time >= GAME_REFRESH_INTERVAL:
                 self.game_board.update()
                 game_state = self.game_board.get_game_state()
                 for client_name, client in list(cur_clients.items()):
