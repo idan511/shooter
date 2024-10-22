@@ -13,6 +13,7 @@ import random
 POWERUP_SPAWN_CHANCE = 0.01
 END_GAME_ON_SINGLE_PLAYER = True
 GAME_REFRESH_INTERVAL = 0.0833 # 12 FPS
+MOVE_INTERVAL = GAME_REFRESH_INTERVAL
 
 class ClientHandler:
 
@@ -64,6 +65,9 @@ class ClientHandler:
         return handshake_ack_payload["success"]
 
 class GameProjectile:
+
+    interval = GAME_REFRESH_INTERVAL * 2
+
     def __init__(self, game, player, row, col, direction, ttl=20):
         self.row = row
         self.col = col
@@ -71,6 +75,9 @@ class GameProjectile:
         self.game = game
         self.player = player
         self.direction = direction
+
+    def get_player_object(self):
+        return self.game.players[self.player]
 
     def advance(self):
         raise NotImplementedError
@@ -82,12 +89,16 @@ class GameProjectile:
         raise NotImplementedError
 
     def fire(self):
+        self.get_player_object().last_shot_time = time.time()
         self.game.projectiles.append(self)
 
     def color(self):
         return 0
 
 class GameBullet(GameProjectile):
+
+    interval = GameProjectile.interval
+
     def __init__(self, game, player, row, col, direction, ttl=20):
         super().__init__(game, player, row, col, direction, ttl)
 
@@ -110,7 +121,23 @@ class GameBullet(GameProjectile):
     def damage(self):
         return 10
 
+class GameStaticBullet(GameBullet):
+
+    interval = GameBullet.interval
+
+    def __init__(self, game, player, row, col, ttl=20):
+        super().__init__(game, player, row, col, "none", ttl)
+
+    def fire(self):
+        self.game.projectiles.append(self)
+
+    def advance(self):
+        self.ttl -= 1
+
 class GameBigBullet(GameProjectile):
+
+    interval = GameProjectile.interval * 1.1
+
     def __init__(self, game, player, row, col, direction, ttl=10):
         super().__init__(game, player, row, col, direction, ttl)
 
@@ -168,11 +195,15 @@ class GameSingleLaser(GameProjectile):
         return 204 # pale red
 
 class GameLazer(GameProjectile):
+
+    interval = GameProjectile.interval * 0.5
+
     def __init__(self, game, player, row, col, direction, ttl=30):
         super().__init__(game, player, row, col, direction, ttl)
 
     def fire(self):
         # fire 3 single lasers in the direction of fire
+        self.get_player_object().last_shot_time = time.time()
         for i in range(3):
             projectile = GameSingleLaser(self.game, self.player, self.row, self.col, self.direction, self.ttl)
             projectile.fire()
@@ -187,13 +218,16 @@ class GameLazer(GameProjectile):
                     self.col += 1
 
 class GameExplosiveBullet(GameProjectile):
+
+    interval = GameProjectile.interval * 2
+
     def __init__(self, game, player, row, col, direction, ttl=15, explosion_max_radius=4):
         super().__init__(game, player, row, col, direction, ttl)
         self.explosion_max_radius = explosion_max_radius
 
     def create_explosion(self, row, col):
         if 0 <= row < self.game.rows and 0 <= col< self.game.cols:
-            projectile = GameBullet(self.game, self.player, row, col, "none", 2)
+            projectile = GameStaticBullet(self.game, self.player, row, col, 2)
             projectile.fire()
 
     def advance(self):
@@ -238,6 +272,9 @@ class GameExplosiveBullet(GameProjectile):
         return 15
 
 class GameHomingMissile(GameProjectile):
+
+    interval = GameProjectile.interval * 1.5
+
     def __init__(self, game, player, row, col, direction, ttl=20, target=None):
         print("new homing missile")
         super().__init__(game, player, row, col, direction, ttl)
@@ -300,6 +337,8 @@ class GamePlayer:
         self.col = col
         self.projectile_type = projectile_type
         self.health = 100
+        self.last_move_time = time.time()
+        self.last_shot_time = time.time()
 
     def color(self):
         return 0
@@ -447,42 +486,50 @@ class GameBoard:
         return game_state, players_health, self.status
 
     def player_action(self, player, action):
+        cur_time = time.time()
+        player_obj = self.players[player]
+        can_move = cur_time - player_obj.last_move_time >= MOVE_INTERVAL
+        can_shoot = cur_time - player_obj.last_shot_time >= player_obj.projectile_type.interval
         match action:
             case 119: # 'w'
-                if self.players[player].row > 0:
-                    self.players[player].row -= 1
-                    print(f"{player} moved up ({self.players[player].row}, {self.players[player].col})")
+                if player_obj.row > 0 and can_move:
+                    player_obj.row -= 1
+                    player_obj.last_move_time = cur_time
+                    print(f"{player} moved up ({player_obj.row}, {player_obj.col})")
 
             case 115: # 's'
-                if self.players[player].row < self.rows - 1:
-                    self.players[player].row += 1
-                    print(f"{player} moved down ({self.players[player].row}, {self.players[player].col})")
+                if player_obj.row < self.rows - 1 and can_move:
+                    player_obj.row += 1
+                    player_obj.last_move_time = cur_time
+                    print(f"{player} moved down ({player_obj.row}, {player_obj.col})")
 
             case 97: # 'a'
-                if self.players[player].col > 0:
-                    self.players[player].col -= 1
-                    print(f"{player} moved left ({self.players[player].row}, {self.players[player].col})")
+                if player_obj.col > 0 and can_move:
+                    player_obj.col -= 1
+                    player_obj.last_move_time = cur_time
+                    print(f"{player} moved left ({player_obj.row}, {player_obj.col})")
 
 
             case 100: # 'd'
-                if self.players[player].col < self.cols - 1:
-                    self.players[player].col += 1
-                    print(f"{player} moved right ({self.players[player].row}, {self.players[player].col})")
+                if player_obj.col < self.cols - 1 and can_move:
+                    player_obj.col += 1
+                    player_obj.last_move_time = cur_time
+                    print(f"{player} moved right ({player_obj.row}, {player_obj.col})")
 
-            case curses.KEY_UP:
-                projectile = self.players[player].projectile_type(self, player, self.players[player].row - 1, self.players[player].col, "up")
+            case curses.KEY_UP if can_shoot:
+                projectile = player_obj.projectile_type(self, player, player_obj.row - 1, player_obj.col, "up")
                 projectile.fire()
 
-            case curses.KEY_DOWN:
-                projectile = self.players[player].projectile_type(self, player, self.players[player].row + 1, self.players[player].col, "down")
+            case curses.KEY_DOWN if can_shoot:
+                projectile = player_obj.projectile_type(self, player, player_obj.row + 1, player_obj.col, "down")
                 projectile.fire()
 
-            case curses.KEY_LEFT:
-                projectile = self.players[player].projectile_type(self, player, self.players[player].row, self.players[player].col - 1, "left")
+            case curses.KEY_LEFT if can_shoot:
+                projectile = player_obj.projectile_type(self, player, player_obj.row, player_obj.col - 1, "left")
                 projectile.fire()
 
-            case curses.KEY_RIGHT:
-                projectile = self.players[player].projectile_type(self, player, self.players[player].row, self.players[player].col + 1, "right")
+            case curses.KEY_RIGHT if can_shoot:
+                projectile = player_obj.projectile_type(self, player, player_obj.row, player_obj.col + 1, "right")
                 projectile.fire()
 
 
