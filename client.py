@@ -140,6 +140,10 @@ class GameClient:
         self.server_ip = ip
         self.server_port = port
         self.is_game_over = False
+        print("\n═══════════════════════════════════════════\n")
+        print("Welcome to the shooter game!")
+        print("Use WASD to move, and arrow keys to shoot.")
+        print("\n═══════════════════════════════════════════\n")
         print(f"Connecting to server {ip}:{port}")
         self.socket = JSONSocket.create_socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
@@ -169,15 +173,35 @@ class GameClient:
 
         game_size = response["game_size"]
 
-        print("Waiting for game start")
+        loader_animation = "|/-\\"
+        loader_index = 0
 
-        game_start_response = self.socket.recv_json()
-        if game_start_response["type"] == "game_start":
-            print("Game start!")
-        else:
-            print("Game start failed!")
-            self.socket.close()
-            return
+        print("Waiting for game start  ", end="")
+
+        game_started = False
+
+        while not game_started:
+            selector = selectors.DefaultSelector()
+            selector.register(self.socket, selectors.EVENT_READ, data=None)
+            events = selector.select(timeout=.5)
+
+            if events:
+                for key, mask in events:
+                    game_start_response = self.socket.recv_json()
+                    if game_start_response["type"] == "game_start":
+                        print("Game start!")
+                        game_started = True
+                        break
+                    else:
+                        print("Game start failed!")
+                        self.socket.close()
+                        return
+
+            else:
+                print(f"\b{loader_animation[loader_index]}", end="", flush=True)
+                loader_index = (loader_index + 1) % len(loader_animation)
+
+        print()
 
         self.game_board = GameBoard(self, *game_size)
 
