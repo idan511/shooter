@@ -416,7 +416,8 @@ class GameBoard:
         self.players[player_name] = GamePlayer(player_character, row, col)
 
     def remove_player(self, player_name):
-        del self.players[player_name]
+        if player_name in self.players:
+            del self.players[player_name]
 
     def update(self):
         # give a small chance for a powerup to spawn
@@ -437,10 +438,12 @@ class GameBoard:
                 continue
             if projectile.row < 0 or projectile.row >= self.rows or projectile.col < 0 or projectile.col >= self.cols:
                 self.projectiles.remove(projectile)
+                continue
             for player_name, player in list(self.players.items()):
                 if player.row == projectile.row and player.col == projectile.col:
                     player.health -= projectile.damage()
-                    self.projectiles.remove(projectile)
+                    if projectile in self.projectiles:
+                        self.projectiles.remove(projectile)
                     self.status = f"{player_name} was hit by a projectile!"
 
         for powerup in self.powerups:
@@ -450,7 +453,8 @@ class GameBoard:
             for player_name, player in list(self.players.items()):
                 if player.row == powerup.row and player.col == powerup.col:
                     powerup.apply(player)
-                    self.powerups.remove(powerup)
+                    if powerup in self.powerups:
+                        self.powerups.remove(powerup)
                     self.status = f"{player_name} picked up a powerup!"
 
         for projectile in self.projectiles:
