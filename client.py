@@ -71,14 +71,14 @@ class GameBoard:
         Print the game state
         :param game_state: the game state
         """
-        self.main_board.clear()
+        self.main_board.erase()
         # each object is a quadruplet (row, col, char, color)
         for obj in self.game_state:
             try:
                 self.main_board.addch(*obj[:3], curses.color_pair(obj[3]))
             except curses.error:
                 if ENABLE_DEBUG_BAR:
-                    self.debug_bar.clear()
+                    self.debug_bar.erase()
                     self.debug_bar.addstr(0, 0, f"Error adding object {obj}")
                     self.debug_bar.refresh()
         self.main_board.refresh()
@@ -95,7 +95,7 @@ class GameBoard:
         players_count = len(players_health)
         if players_count != self.cur_player_count:
             self.cur_player_count = players_count
-            self.player_count_value.clear()
+            self.player_count_value.erase()
             self.player_count_value.addstr(0, 0, str(players_count))
             self.player_count_value.refresh()
 
@@ -110,14 +110,14 @@ class GameBoard:
             else:
                 color = 47 # green
 
-            self.health_bar_value.clear()
+            self.health_bar_value.erase()
             self.health_bar_value.addstr(0, 0, str(player_health), curses.color_pair(color))
             self.health_bar_value.refresh()
 
     def update_status(self, status):
         if status != self.cur_status:
             self.cur_status = status
-            self.status_bar.clear()
+            self.status_bar.erase()
             self.status_bar.addstr(0, 0, status)
             self.status_bar.refresh()
 
@@ -211,18 +211,18 @@ class GameClient:
 
     def handle_unknown_message(self, data):
         if ENABLE_DEBUG_BAR:
-            self.game_board.debug_bar.clear()
+            self.game_board.debug_bar.erase()
             self.game_board.debug_bar.addstr(0, 0, f"Unknown message: {data['type']}")
             self.game_board.debug_bar.refresh()
 
     def handle_server_message(self):
         if ENABLE_DEBUG_BAR:
-            self.game_board.debug_bar.clear()
+            self.game_board.debug_bar.erase()
             self.game_board.debug_bar.addstr(0, 0, f"Server sent something")
             self.game_board.debug_bar.refresh()
         data = self.socket.recv_json()
         if ENABLE_DEBUG_BAR:
-            self.game_board.debug_bar.clear()
+            self.game_board.debug_bar.erase()
             self.game_board.debug_bar.addstr(0, 0, f"Got: {str(data)[:20]}")
             self.game_board.debug_bar.refresh()
         tid = tuple(data["tid"])
@@ -242,7 +242,7 @@ class GameClient:
         self.transactions[(transaction.transaction_id, self.player_name)] = transaction
         transaction.handle(key)
         if ENABLE_DEBUG_BAR:
-            self.game_board.debug_bar.clear()
+            self.game_board.debug_bar.erase()
             self.game_board.debug_bar.addstr(0, 0, f"Key pressed: {key_name}")
             self.game_board.debug_bar.refresh()
 
@@ -252,7 +252,7 @@ class GameClient:
             # wait for the server to send something,
             # or wait for the user to press a key
             if ENABLE_DEBUG_BAR:
-                self.game_board.debug_bar.clear()
+                self.game_board.debug_bar.erase()
                 self.game_board.debug_bar.addstr(0, 0, "Waiting for server or user input.")
                 self.game_board.debug_bar.refresh()
             selector = selectors.DefaultSelector()
@@ -269,7 +269,7 @@ class GameClient:
                     key.data(self)
                 else:
                     if ENABLE_DEBUG_BAR:
-                        self.game_board.debug_bar.clear()
+                        self.game_board.debug_bar.erase()
                         self.game_board.debug_bar.addstr(0, 0, f"Unknown event")
                         self.game_board.debug_bar.refresh()
 
