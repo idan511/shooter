@@ -187,6 +187,7 @@ class GameClient:
 
             if events:
                 for key, mask in events:
+                    print(f"\b ")
                     game_start_response = self.socket.recv_json()
                     if game_start_response["type"] == "game_start":
                         print("Game start!")

@@ -10,10 +10,11 @@ import curses
 import time
 import random
 
-POWERUP_SPAWN_CHANCE = 0.01
+POWERUP_SPAWN_CHANCE = 0.41
 END_GAME_ON_SINGLE_PLAYER = True
-GAME_REFRESH_INTERVAL = 0.0833 # 12 FPS
+GAME_REFRESH_INTERVAL = 1 / 15  # 30 FPS
 MOVE_INTERVAL = GAME_REFRESH_INTERVAL
+
 
 class ClientHandler:
 
@@ -64,8 +65,8 @@ class ClientHandler:
 
         return handshake_ack_payload["success"]
 
-class GameProjectile:
 
+class GameProjectile:
     interval = GAME_REFRESH_INTERVAL * 2
 
     def __init__(self, game, player, row, col, direction, ttl=20):
@@ -95,8 +96,8 @@ class GameProjectile:
     def color(self):
         return 0
 
-class GameBullet(GameProjectile):
 
+class GameBullet(GameProjectile):
     interval = GameProjectile.interval
 
     def __init__(self, game, player, row, col, direction, ttl=20):
@@ -121,8 +122,8 @@ class GameBullet(GameProjectile):
     def damage(self):
         return 10
 
-class GameStaticBullet(GameBullet):
 
+class GameStaticBullet(GameBullet):
     interval = GameBullet.interval
 
     def __init__(self, game, player, row, col, ttl=20):
@@ -134,8 +135,8 @@ class GameStaticBullet(GameBullet):
     def advance(self):
         self.ttl -= 1
 
-class GameBigBullet(GameProjectile):
 
+class GameBigBullet(GameProjectile):
     interval = GameProjectile.interval * 1.1
 
     def __init__(self, game, player, row, col, direction, ttl=10):
@@ -159,6 +160,7 @@ class GameBigBullet(GameProjectile):
 
     def damage(self):
         return 20
+
 
 class GameSingleLaser(GameProjectile):
     def __init__(self, game, player, row, col, direction, ttl=1):
@@ -192,10 +194,10 @@ class GameSingleLaser(GameProjectile):
         return 3
 
     def color(self):
-        return 204 # pale red
+        return 204  # pale red
+
 
 class GameLazer(GameProjectile):
-
     interval = GameProjectile.interval * 0.5
 
     def __init__(self, game, player, row, col, direction, ttl=30):
@@ -217,8 +219,8 @@ class GameLazer(GameProjectile):
                 case "right":
                     self.col += 1
 
-class GameExplosiveBullet(GameProjectile):
 
+class GameExplosiveBullet(GameProjectile):
     interval = GameProjectile.interval * 2
 
     def __init__(self, game, player, row, col, direction, ttl=15, explosion_max_radius=4):
@@ -226,7 +228,7 @@ class GameExplosiveBullet(GameProjectile):
         self.explosion_max_radius = explosion_max_radius
 
     def create_explosion(self, row, col):
-        if 0 <= row < self.game.rows and 0 <= col< self.game.cols:
+        if 0 <= row < self.game.rows and 0 <= col < self.game.cols:
             projectile = GameStaticBullet(self.game, self.player, row, col, 2)
             projectile.fire()
 
@@ -271,8 +273,8 @@ class GameExplosiveBullet(GameProjectile):
     def damage(self):
         return 15
 
-class GameHomingMissile(GameProjectile):
 
+class GameHomingMissile(GameProjectile):
     interval = GameProjectile.interval * 1.5
 
     def __init__(self, game, player, row, col, direction, ttl=20, target=None):
@@ -328,7 +330,45 @@ class GameHomingMissile(GameProjectile):
         return 5
 
     def color(self):
-        return 136 # purple
+        return 136  # purple
+
+
+class StatusEffect:
+    def __init__(self, player, ttl):
+        self.ttl = ttl
+        self.player = player
+        player.status_effects.add(self)
+        self.start()
+
+    def start(self):
+        print("Status effect started")
+
+    def step(self):
+        self.ttl -= 1
+
+        if self.ttl <= 0:
+            self.end()
+            return
+
+    def end(self):
+        print("Status effect ended")
+
+
+class SpeedBoostStatusEffect(StatusEffect):
+    def __init__(self, player, ttl=150):
+        super().__init__(player, ttl)
+
+    def start(self):
+        print(f"Speed boost for {self.player}")
+        self.player.step_size *= 2
+
+    def step(self):
+        super().step()
+
+    def end(self):
+        print(f"Speed boost ended for {self.player}")
+        self.player.step_size /= 2
+
 
 class GamePlayer:
     def __init__(self, character, row, col, projectile_type=GameBullet):
@@ -337,11 +377,22 @@ class GamePlayer:
         self.col = col
         self.projectile_type = projectile_type
         self.health = 100
+        self.step_size = 1
         self.last_move_time = time.time()
         self.last_shot_time = time.time()
+        self.move_interval = MOVE_INTERVAL
+        self.status_effects = set()
 
     def color(self):
         return 0
+
+    def apply_statuses(self):
+        for status in list(self.status_effects):
+            status.step()
+
+            if status.ttl <= 0:
+                self.status_effects.remove(status)
+
 
 class GamePowerup:
     def __init__(self, row, col, ttl):
@@ -358,6 +409,7 @@ class GamePowerup:
     def color(self):
         return 0
 
+
 class GameHealthPowerup(GamePowerup):
     def apply(self, player):
         player.health += 25
@@ -366,7 +418,8 @@ class GameHealthPowerup(GamePowerup):
         return "♥"
 
     def color(self):
-        return 197 # red
+        return 197  # red
+
 
 class GameHomingMissilePowerup(GamePowerup):
     def apply(self, player):
@@ -376,7 +429,8 @@ class GameHomingMissilePowerup(GamePowerup):
         return "⌾"
 
     def color(self):
-        return 136 # purple
+        return 136  # purple
+
 
 class GameBigBulletPowerup(GamePowerup):
     def apply(self, player):
@@ -384,6 +438,7 @@ class GameBigBulletPowerup(GamePowerup):
 
     def character(self):
         return "●"
+
 
 class GameLazerPowerup(GamePowerup):
     def apply(self, player):
@@ -393,7 +448,8 @@ class GameLazerPowerup(GamePowerup):
         return "/"
 
     def color(self):
-        return 204 # pale red
+        return 204  # pale red
+
 
 class GameExplosiveBulletPowerup(GamePowerup):
     def apply(self, player):
@@ -401,6 +457,18 @@ class GameExplosiveBulletPowerup(GamePowerup):
 
     def character(self):
         return "✢"
+
+
+class GameSpeedBoostPowerup(GamePowerup):
+    def apply(self, player):
+        SpeedBoostStatusEffect(player)
+
+    def character(self):
+        return "⨠"
+
+    def color(self):
+        return 229  # yellow
+
 
 class GameBoard:
     def __init__(self, game_server, rows, cols):
@@ -429,7 +497,8 @@ class GameBoard:
                                      GameHomingMissilePowerup,
                                      GameBigBulletPowerup,
                                      GameLazerPowerup,
-                                     GameExplosiveBulletPowerup])(row, col, powerup_ttl)
+                                     GameExplosiveBulletPowerup,
+                                     GameSpeedBoostPowerup])(row, col, powerup_ttl)
             self.powerups.append(powerup)
 
         for projectile in self.projectiles:
@@ -470,6 +539,8 @@ class GameBoard:
                 self.remove_player(player_name)
                 self.status = f"{player_name} died!!!!"
 
+            player.apply_statuses()
+
         if len(self.players) == 1:
             self.status = f"{list(self.players.keys())[0]} is the winner!"
 
@@ -483,7 +554,7 @@ class GameBoard:
             projectile_character = projectile.character()
             if isinstance(projectile_character, str):
                 game_state.append((int(projectile.row), int(projectile.col), projectile_character, projectile.color()))
-            else: # it's a list
+            else:  # it's a list
                 game_state.append(projectile_character)
         for powerup in self.powerups:
             game_state.append((int(powerup.row), int(powerup.col), powerup.character(), powerup.color()))
@@ -492,31 +563,38 @@ class GameBoard:
     def player_action(self, player, action):
         cur_time = time.time()
         player_obj = self.players[player]
-        can_move = cur_time - player_obj.last_move_time >= MOVE_INTERVAL
+        can_move = cur_time - player_obj.last_move_time >= player_obj.move_interval
         can_shoot = cur_time - player_obj.last_shot_time >= player_obj.projectile_type.interval
         match action:
-            case 119: # 'w'
+            case 119:  # 'w'
                 if player_obj.row > 0 and can_move:
-                    player_obj.row -= 1
+                    player_obj.row -= player_obj.step_size
+                    if player_obj.row < 0:
+                        player_obj.row = 0
                     player_obj.last_move_time = cur_time
                     print(f"{player} moved up ({player_obj.row}, {player_obj.col})")
 
-            case 115: # 's'
+            case 115:  # 's'
                 if player_obj.row < self.rows - 1 and can_move:
-                    player_obj.row += 1
+                    player_obj.row += player_obj.step_size
+                    if player_obj.row >= self.rows:
+                        player_obj.row = self.rows - 1
                     player_obj.last_move_time = cur_time
                     print(f"{player} moved down ({player_obj.row}, {player_obj.col})")
 
-            case 97: # 'a'
+            case 97:  # 'a'
                 if player_obj.col > 0 and can_move:
-                    player_obj.col -= 1
+                    player_obj.col -= player_obj.step_size
+                    if player_obj.col < 0:
+                        player_obj.col = 0
                     player_obj.last_move_time = cur_time
                     print(f"{player} moved left ({player_obj.row}, {player_obj.col})")
 
-
-            case 100: # 'd'
+            case 100:  # 'd'
                 if player_obj.col < self.cols - 1 and can_move:
-                    player_obj.col += 1
+                    player_obj.col += player_obj.step_size
+                    if player_obj.col >= self.cols:
+                        player_obj.col = self.cols - 1
                     player_obj.last_move_time = cur_time
                     print(f"{player} moved right ({player_obj.row}, {player_obj.col})")
 
@@ -604,7 +682,8 @@ class GameServer:
                     data = client.client_socket.recv_json()
                 except Exception as e:
                     error_type = type(e).__name__
-                    print(f"Something went wrong with {client.client_name}@{client.client_address[0]}:{client.client_address[1]}: {error_type}: {e}")
+                    print(
+                        f"Something went wrong with {client.client_name}@{client.client_address[0]}:{client.client_address[1]}: {error_type}: {e}")
                     print(f"Closing connection with {client.client_name}")
                     client.client_socket.close()
                     del cur_clients[client.client_name]
@@ -622,7 +701,8 @@ class GameServer:
                 else:
                     # print(f"New transaction {tid}")
                     try:
-                        transaction = Transaction(self, tid[1], client.client_socket, date_type_handlers[data["type"]], tid=tid[0])
+                        transaction = Transaction(self, tid[1], client.client_socket, date_type_handlers[data["type"]],
+                                                  tid=tid[0])
                         self.transactions[tid] = transaction
                         transaction.handle(data)
                     except KeyError:
@@ -660,7 +740,6 @@ class GameServer:
                         transaction.handle(winner)
                     break
 
-
     def __del__(self):
         if self.clients:
             print("Closing client sockets")
@@ -687,7 +766,9 @@ class GameServer:
                         client_socket.close()
                         continue
                     self.clients[client_handler.client_name] = client_handler
-                    self.game_board.add_player(client_handler.client_name, client_handler.client_character, random.randint(0, self.game_size[0] - 1), random.randint(0, self.game_size[1] - 1))
+                    self.game_board.add_player(client_handler.client_name, client_handler.client_character,
+                                               random.randint(0, self.game_size[0] - 1),
+                                               random.randint(0, self.game_size[1] - 1))
                 print(f"Accepted connection from {client_address}")
             except TimeoutError:
                 continue
