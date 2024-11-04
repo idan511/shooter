@@ -9,8 +9,9 @@ from server_transactions import *
 import curses
 import time
 import random
+import keys
 
-POWERUP_SPAWN_CHANCE = 0.41
+POWERUP_SPAWN_CHANCE = 0.01
 END_GAME_ON_SINGLE_PLAYER = True
 GAME_REFRESH_INTERVAL = 1 / 15  # 30 FPS
 MOVE_INTERVAL = GAME_REFRESH_INTERVAL
@@ -566,7 +567,7 @@ class GameBoard:
         can_move = cur_time - player_obj.last_move_time >= player_obj.move_interval
         can_shoot = cur_time - player_obj.last_shot_time >= player_obj.projectile_type.interval
         match action:
-            case 119:  # 'w'
+            case keys.MOVE_UP:
                 if player_obj.row > 0 and can_move:
                     player_obj.row -= player_obj.step_size
                     if player_obj.row < 0:
@@ -574,7 +575,7 @@ class GameBoard:
                     player_obj.last_move_time = cur_time
                     print(f"{player} moved up ({player_obj.row}, {player_obj.col})")
 
-            case 115:  # 's'
+            case keys.MOVE_DOWN:
                 if player_obj.row < self.rows - 1 and can_move:
                     player_obj.row += player_obj.step_size
                     if player_obj.row >= self.rows:
@@ -582,7 +583,7 @@ class GameBoard:
                     player_obj.last_move_time = cur_time
                     print(f"{player} moved down ({player_obj.row}, {player_obj.col})")
 
-            case 97:  # 'a'
+            case keys.MOVE_LEFT:
                 if player_obj.col > 0 and can_move:
                     player_obj.col -= player_obj.step_size
                     if player_obj.col < 0:
@@ -590,7 +591,7 @@ class GameBoard:
                     player_obj.last_move_time = cur_time
                     print(f"{player} moved left ({player_obj.row}, {player_obj.col})")
 
-            case 100:  # 'd'
+            case keys.MOVE_RIGHT:
                 if player_obj.col < self.cols - 1 and can_move:
                     player_obj.col += player_obj.step_size
                     if player_obj.col >= self.cols:
@@ -598,19 +599,19 @@ class GameBoard:
                     player_obj.last_move_time = cur_time
                     print(f"{player} moved right ({player_obj.row}, {player_obj.col})")
 
-            case curses.KEY_UP if can_shoot:
+            case keys.SHOOT_UP if can_shoot:
                 projectile = player_obj.projectile_type(self, player, player_obj.row - 1, player_obj.col, "up")
                 projectile.fire()
 
-            case curses.KEY_DOWN if can_shoot:
+            case keys.SHOOT_DOWN if can_shoot:
                 projectile = player_obj.projectile_type(self, player, player_obj.row + 1, player_obj.col, "down")
                 projectile.fire()
 
-            case curses.KEY_LEFT if can_shoot:
+            case keys.SHOOT_LEFT if can_shoot:
                 projectile = player_obj.projectile_type(self, player, player_obj.row, player_obj.col - 1, "left")
                 projectile.fire()
 
-            case curses.KEY_RIGHT if can_shoot:
+            case keys.SHOOT_RIGHT if can_shoot:
                 projectile = player_obj.projectile_type(self, player, player_obj.row, player_obj.col + 1, "right")
                 projectile.fire()
 

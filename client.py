@@ -3,6 +3,7 @@ client program for a shooter game
 """
 
 import socket
+from ast import parse
 from select import select
 
 from json_socket import JSONSocket
@@ -12,8 +13,31 @@ from time import sleep
 import selectors
 from transaction import Transaction
 from client_transactions import *
+import keys
 
 ENABLE_DEBUG_BAR = False
+
+keys_mapping = {
+    119: keys.MOVE_UP,  # 'w'
+    115: keys.MOVE_DOWN,  # 's'
+    97: keys.MOVE_LEFT,  # 'a'
+    100: keys.MOVE_RIGHT,  # 'd'
+    curses.KEY_UP: keys.SHOOT_UP,
+    curses.KEY_DOWN: keys.SHOOT_DOWN,
+    curses.KEY_LEFT: keys.SHOOT_LEFT,
+    curses.KEY_RIGHT: keys.SHOOT_RIGHT
+}
+
+inverted_keys_mapping = {
+    119: keys.SHOOT_UP,  # 'w'
+    115: keys.SHOOT_DOWN,  # 's'
+    97: keys.SHOOT_LEFT,  # 'a'
+    100: keys.SHOOT_RIGHT,  # 'd'
+    curses.KEY_UP: keys.MOVE_UP,
+    curses.KEY_DOWN: keys.MOVE_DOWN,
+    curses.KEY_LEFT: keys.MOVE_LEFT,
+    curses.KEY_RIGHT: keys.MOVE_RIGHT
+}
 
 class GameBoard:
     player_count_label = "Players: "
@@ -241,7 +265,7 @@ class GameClient:
         key_name = curses.keyname(key)
         transaction = Transaction(self, self.player_name, self.socket, keypress_handler)
         self.transactions[(transaction.transaction_id, self.player_name)] = transaction
-        transaction.handle(key)
+        transaction.handle(keys_mapping.get(key, 0))
         if ENABLE_DEBUG_BAR:
             self.game_board.debug_bar.erase()
             self.game_board.debug_bar.addstr(0, 0, f"Key pressed: {key_name}")
@@ -287,11 +311,15 @@ def parse_args():
     parser.add_argument("--port", type=int, default=12345, help="The port of the server")
     parser.add_argument("--player_name", type=str, help="The name of the player")
     parser.add_argument("--player_character", type=str, help="The character of the player")
+    parser.add_argument("--inverted_keys", action="store_true", help="Use inverted keys")
     args = parser.parse_args()
     return args
 
 def main():
     args = parse_args()
+    if args.inverted_keys:
+        global keys_mapping
+        keys_mapping = inverted_keys_mapping
     client = GameClient(args.ip, args.port, args.player_name, args.player_character)
 
 if __name__ == "__main__":
