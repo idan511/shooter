@@ -2,11 +2,9 @@ from json_socket import JSONSocket
 import socket
 import threading
 import argparse
-from time import sleep
 import selectors
 from transaction import Transaction
 from server_transactions import *
-import curses
 import time
 import random
 import keys

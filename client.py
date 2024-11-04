@@ -85,6 +85,7 @@ class GameBoard:
         self.status_bar.keypad(True)
         self.status_bar.addstr(0, 0, self.cur_status)
         self.status_bar.refresh()
+        self.players_health_window = curses.newwin(rows, 20, 0, cols + 2)
         self.players_health = {}
 
         self.main_board.refresh()
@@ -137,6 +138,13 @@ class GameBoard:
             self.health_bar_value.erase()
             self.health_bar_value.addstr(0, 0, str(player_health), curses.color_pair(color))
             self.health_bar_value.refresh()
+
+        self.players_health_window.erase()
+
+        for i, (player, health) in enumerate(players_health.items()):
+            self.players_health_window.addstr(i, 0, f"{player:10.10}: {health}")
+
+        self.players_health_window.refresh()
 
     def update_status(self, status):
         if status != self.cur_status:
