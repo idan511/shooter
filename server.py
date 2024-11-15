@@ -14,6 +14,8 @@ END_GAME_ON_SINGLE_PLAYER = True
 GAME_REFRESH_INTERVAL = 1 / 15  # 30 FPS
 MOVE_INTERVAL = GAME_REFRESH_INTERVAL
 
+BANNED_CHARACTERS = {"\n", "\r", "\t", "\b", "\f", "\v", " ", ":", ";", ",", "."}
+
 
 class ClientHandler:
 
@@ -52,6 +54,14 @@ class ClientHandler:
             print(f"Rejected connection from {self.client_address}, game already started")
             handshake_ack_payload["success"] = False
             handshake_ack_payload["fail_reason"] = "Game already started"
+        elif len(self.client_character) != 1:
+            print(f"Rejected connection from {self.client_address}, invalid character")
+            handshake_ack_payload["success"] = False
+            handshake_ack_payload["fail_reason"] = "Invalid character, must be a single character"
+        elif self.client_character in BANNED_CHARACTERS:
+            print(f"Rejected connection from {self.client_address}, banned character")
+            handshake_ack_payload["success"] = False
+            handshake_ack_payload["fail_reason"] = "Banned character"
         elif self.client_character in [player.character for player in self.game_server.game_board.players.values()]:
             print(f"Rejected connection from {self.client_address}, duplicate character")
             handshake_ack_payload["success"] = False
