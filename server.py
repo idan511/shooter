@@ -685,11 +685,13 @@ class GameServer:
                         f"Something went wrong with {client.client_name}@{client.client_address[0]}:{client.client_address[1]}: {error_type}: {e}")
                     print(f"Closing connection with {client.client_name}")
                     client.client_socket.close()
-                    del cur_clients[client.client_name]
+                    if client.client_name in cur_clients:
+                        del cur_clients[client.client_name]
                     self.game_board.players[client.client_name].health = 0
                     self.game_board.status = f"{client.client_name} disconnected"
                     with self.clients_lock:
-                        del self.clients[client.client_name]
+                        if client.client_name in self.clients:
+                            del self.clients[client.client_name]
                     continue
                 # print(f"Received data from {client.client_name}: {data}")
                 tid = tuple(data["tid"])
@@ -725,10 +727,12 @@ class GameServer:
                         print(f"Closing connection with {client_name}")
                         self.game_board.status = f"{client_name} disconnected"
                         client.client_socket.close()
-                        del cur_clients[client_name]
+                        if client_name in cur_clients:
+                            del cur_clients[client_name]
                         self.game_board.players[client.client_name].health = 0
                         with self.clients_lock:
-                            del self.clients[client_name]
+                            if client_name in self.clients:
+                                del self.clients[client_name]
                 last_update_time = current_time
 
                 if END_GAME_ON_SINGLE_PLAYER and len(self.game_board.players) == 1:
