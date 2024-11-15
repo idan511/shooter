@@ -473,7 +473,7 @@ class GameSpeedBoostPowerup(GamePowerup):
         SpeedBoostStatusEffect(player)
 
     def character(self):
-        return "⨠"
+        return "⇑"
 
     def color(self):
         return 229  # yellow
