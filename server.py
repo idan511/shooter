@@ -289,6 +289,7 @@ class GameHomingMissile(GameProjectile):
     def __init__(self, game, player, row, col, direction, ttl=20, target=None):
         print("new homing missile")
         super().__init__(game, player, row, col, direction, ttl)
+        self.move_ticker = False
         if target is None:
             self.acquire_target()
         else:
@@ -310,14 +311,26 @@ class GameHomingMissile(GameProjectile):
 
     def advance(self):
         if self.target:
-            if self.row < self.target.row:
-                self.row += 1
-            elif self.row > self.target.row:
-                self.row -= 1
-            elif self.col < self.target.col:
-                self.col += 1
-            elif self.col > self.target.col:
-                self.col -= 1
+            if self.move_ticker:
+                if self.row < self.target.row:
+                    self.row += 1
+                elif self.row > self.target.row:
+                    self.row -= 1
+                elif self.col < self.target.col:
+                    self.col += 1
+                elif self.col > self.target.col:
+                    self.col -= 1
+            else:
+                if self.col < self.target.col:
+                    self.col += 1
+                elif self.col > self.target.col:
+                    self.col -= 1
+                elif self.row < self.target.row:
+                    self.row += 1
+                elif self.row > self.target.row:
+                    self.row -= 1
+
+            self.move_ticker = not self.move_ticker
         else:
             match self.direction:
                 case "up":
